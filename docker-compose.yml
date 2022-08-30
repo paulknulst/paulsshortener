@@ -1,0 +1,27 @@
+version: '3.6'
+services:
+  db:
+    image: mongo
+    restart: always
+    environment:
+      MONGODB_USER: paul
+      MONGODB_DATABASE: paulsshortener
+      MONGODB_PASS: paulspw
+    volumes:
+      - db:/data/db
+  backend:
+    image: paulsshortener
+    environment:
+      - BASE_URL=https://at0m.de/
+      - DB_HOST=db
+      - DB_PORT=27017
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 3001:3000
+    depends_on:
+      - db
+    restart: unless-stopped
+volumes:
+  db:

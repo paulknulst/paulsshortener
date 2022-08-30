@@ -1,0 +1,55 @@
+version: '3.6'
+services:
+  db:
+    image: mongo
+    restart: always
+    environment:
+      MONGODB_USER: paul
+      MONGODB_DATABASE: paulsshortener
+      MONGODB_PASS: paulspw
+    deploy:
+      placement:
+        constraints:
+          - node.labels.shortener.db == true
+    volumes:
+      - db:/data/db
+    networks:
+      - default
+  backend:
+    image: ${DOCKER_REGISTRY}/paulsshortener
+    environment:
+      - BASE_URL=https://at0m.de/
+      - DB_HOST=db
+      - DB_PORT=27017
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - default
+      - traefik-public
+    depends_on:
+      - db
+    restart: unless-stopped
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-public
+        - traefik.constraint-label=traefik-public
+        - traefik.http.routers.pauls-shortener-http.rule=Host(`at0m.de`) || Host(`www.at0m.de`)
+        - traefik.http.routers.pauls-shortener-http.entrypoints=http
+        - traefik.http.routers.pauls-shortener-http.middlewares=https-redirect
+        - traefik.http.routers.pauls-shortener-https.rule=Host(`at0m.de`)
+        - traefik.http.routers.pauls-shortener-https.entrypoints=https
+        - traefik.http.routers.pauls-shortener-https.tls=true
+        - traefik.http.routers.pauls-shortener-https.tls.certresolver=le
+        - traefik.http.services.pauls-shortener.loadbalancer.server.port=3000
+        - traefik.http.middlewares.redirect-pauls-shortener.redirectregex.regex=^https://www.at0m.de/(.*)
+        - traefik.http.middlewares.redirect-pauls-shortener.redirectregex.replacement=https://at0m.de/$${1}
+        - traefik.http.middlewares.redirect-pauls-shortener.redirectregex.permanent=true
+        - traefik.http.routers.blogs-knulst-https.middlewares=redirect-pauls-shortener
+volumes:
+  db:
+
+networks:
+  traefik-public:
+    external: true
